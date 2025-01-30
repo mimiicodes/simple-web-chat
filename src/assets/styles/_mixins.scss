@@ -1,0 +1,12 @@
+@use './resources' as resource;
+
+@mixin screen-1440 {
+  @media screen and (max-width: 1440px) {
+    @content;
+  }
+}
+@mixin mobile-1024 {
+  @media screen and (max-width: 1024px) {
+    @content;
+  }
+}
