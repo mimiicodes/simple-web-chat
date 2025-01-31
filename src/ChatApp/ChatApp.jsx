@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Icon } from "@iconify/react";
 import './ChatApp.scss';
 import avatar1 from "../assets/images/avatar1.png";
@@ -11,22 +11,31 @@ const ChatApp = () => {
   const [page, setPage] = useState(1);
   const chatBodyRef = useRef(null);
   const pageSize = 25;
-  
+
   useEffect(() => {
     const storedName = prompt("Enter your name:") || "User";
     setNameInp(storedName);
-    
+
     const savedMessages = JSON.parse(localStorage.getItem(`messages_${storedName}`)) || [];
-    setMessages(savedMessages.slice(-pageSize));
+
+    if (savedMessages.length === 0) {
+      const initialMessage = { sender: "System", text: `Hello ${storedName}`, type: "received"};
+      const updatedMessages = [initialMessage];
+      localStorage.setItem(`messages_${storedName}`, JSON.stringify(updatedMessages));
+      setMessages(updatedMessages.slice(-pageSize));
+    } else {
+      setMessages(savedMessages.slice(-pageSize));
+    }
   }, []);
 
   useEffect(() => {
     const handleStorage = (event) => {
       if (event.key.startsWith("messages_")) {
-        setMessages(JSON.parse(event.newValue).slice(-page * pageSize));
+        const newMessages = JSON.parse(event.newValue);
+        setMessages(newMessages.slice(-page * pageSize));
       }
     };
-    
+
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [page]);
@@ -34,18 +43,21 @@ const ChatApp = () => {
   useEffect(() => {
     const channel = new BroadcastChannel("chat");
     channel.onmessage = (event) => {
-      setMessages(event.data.slice(-page * pageSize));
+      const newMessages = event.data;
+      setMessages(newMessages.slice(-page * pageSize));
     };
     return () => channel.close();
   }, [page]);
-  
+
   const handleSend = () => {
     if (inputText.trim()) {
       const newMessage = { sender: nameInp, text: inputText, type: "sent" };
       const updatedMessages = [...messages, newMessage];
       localStorage.setItem(`messages_${nameInp}`, JSON.stringify(updatedMessages));
-      setMessages(updatedMessages.slice(-page * pageSize));
+
+      setMessages(updatedMessages.slice(-pageSize));
       setInputText("");
+      setPage(1);
       const channel = new BroadcastChannel("chat");
       channel.postMessage(updatedMessages);
       channel.close();
@@ -75,11 +87,15 @@ const ChatApp = () => {
         </div>
         <Icon icon="mdi:dots-vertical" className="menu-icon" />
       </div>
-      <div className="chat-body" ref={chatBodyRef} onScroll={(e) => {
-        if (e.target.scrollTop === 0) {
-          loadMoreMessages();
-        }
-      }}>
+      <div
+        className="chat-body"
+        ref={chatBodyRef}
+        onScroll={(e) => {
+          if (e.target.scrollTop <= 10) {
+            loadMoreMessages();
+          }
+        }}
+      >
         {messages.map((msg, index) => (
           <div key={index} className={`message-wrapper ${msg.type}`}>
             {msg.type === "received" && <img src={avatar1} alt="Receiver" className="chat-avatar" />}
@@ -108,6 +124,5 @@ const ChatApp = () => {
       </div>
     </div>
   );
-};
-
+}
 export default ChatApp;
